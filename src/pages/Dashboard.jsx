@@ -35,8 +35,6 @@ export default function Dashboard() {
         </div>
       </header>
       
-      {/* --- THIS IS THE FIX --- */}
-      {/* The <main> tag now controls the layout */}
       <main style={styles.mainContent}>
         {renderDashboard()}
       </main>
@@ -44,34 +42,47 @@ export default function Dashboard() {
   );
 }
 
-// --- FULLY CORRECTED STYLES ---
+// --- STYLES ---
 const styles = {
   pageContainer: {
     minHeight: '100vh',
     backgroundColor: '#f9fafb',
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+    boxSizing: 'border-box',
+    overflowX: 'hidden', // prevent accidental horizontal overflow
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '16px 24px',
+    padding: '12px 16px',
     backgroundColor: '#fff',
     borderBottom: '1px solid #e5e7eb',
+    gap: 12,
+    flexWrap: 'wrap', // allow wrapping on very narrow screens
+    boxSizing: 'border-box',
   },
   logo: {
-    fontSize: '24px',
+    fontSize: 'clamp(18px, 3.5vw, 24px)', // responsive sizing
     fontWeight: 'bold',
     color: '#007bff',
+    margin: 0,
   },
   userInfo: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
+    gap: '12px',
+    flex: '0 0 auto',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
   },
   emailText: {
     color: '#374151',
     fontSize: '14px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    maxWidth: '220px',
   },
   logoutButton: {
     padding: '8px 12px',
@@ -81,12 +92,16 @@ const styles = {
     border: '1px solid #d1d5db',
     borderRadius: '6px',
     cursor: 'pointer',
+    whiteSpace: 'nowrap',
   },
-  // --- THIS IS THE NEW STYLE THAT FIXES THE LAYOUT ---
+  // Responsive main content container
   mainContent: {
-    maxWidth: 1200, 
-    margin: '28px auto', 
-    padding: '0 20px 42px 20px',
+    width: '95%',            // fill most of the viewport on small screens
+    maxWidth: '1200px',     // but keep a comfortable max on large screens
+    margin: '28px auto',
+    padding: '0 12px 42px 12px',
+    boxSizing: 'border-box',
+    display: 'block',
   },
   comingSoon: { 
     padding: '40px',
