@@ -1,8 +1,6 @@
 // src/components/management/AddTeacher.jsx
-
 import React, { useState } from 'react';
-// Using relative path to match your other files
-import { supabase } from '../../api/supabaseClient'; 
+import { supabase } from '../../api/supabaseClient';
 
 const SUBJECTS = ['Physics', 'Chemistry', 'Maths', 'Biology', 'English', 'Hindi', 'History', 'Geography', 'Computer'];
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -18,11 +16,11 @@ export default function AddTeacher({ onClose, onSuccess }) {
   const [joinedDate, setJoinedDate] = useState('');
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses] = useState([]);
-  
-  // --- NEW FIELDS FOR LOGIN ---
+
+  // Login fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,174 +31,172 @@ export default function AddTeacher({ onClose, onSuccess }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setLoading(true);
 
-    // Check for all fields, including new email/password
+    // required fields
     if (!firstName || !lastName || !mobile || !address || !salary || !joinedDate || subjects.length === 0 || classes.length === 0 || !email || !password) {
-      setError('Please fill out all required fields.');
+      setError('Please fill all required fields (including email & password).');
       setLoading(false);
       return;
     }
 
+    const teacherData = {
+      name: `${firstName} ${lastName}`,
+      first_name: firstName,
+      last_name: lastName,
+      contact: mobile,
+      address,
+      salary: Number(salary),
+      salary_type: salaryType,
+      joined_date: joinedDate,
+      subjects,
+      classes,
+      archived: false,
+    };
+
+    const authData = {
+      email,
+      password,
+    };
+
     try {
-      // 1. Create the Auth User (the login)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: email,
-        password: password,
-        options: {
-          data: {
-            role: 'teacher', // Set their role in the metadata
-            full_name: `${firstName} ${lastName}`
-          }
-        }
-      });
+      // Call Edge Function
+      const { data, error: functionError } = await supabase.functions.invoke(
+        'create_teacher',
+        { body: { teacherData, authData } }
+      );
 
-      if (authError) throw authError;
-      
-      const newUserId = authData.user.id;
+      // On older CLI versions the return structure may differ; check both:
+      if (functionError) throw functionError;
+      if (data?.error) throw new Error(data.error);
 
-      // 2. Create the Teacher Profile in the 'teachers' table
-      const { error: profileError } = await supabase.from('teachers').insert({
-        user_id: newUserId, // Link to the auth user
-        name: `${firstName} ${lastName}`,
-        first_name: firstName,
-        last_name: lastName,
-        contact: mobile,
-        address,
-        salary: Number(salary),
-        salary_type: salaryType,
-        joined_date: joinedDate,
-        subjects,
-        classes,
-        archived: false
-      });
-
-      if (profileError) throw profileError;
-
-      // 3. Success
+      // success
       setLoading(false);
       onSuccess && onSuccess();
       onClose && onClose();
-
     } catch (err) {
-      // Handle errors
-      setError(err.message);
+      // better error messages
+      const message = err?.message || JSON.stringify(err) || 'Failed to add teacher';
+      setError(message);
       setLoading(false);
+      console.error('AddTeacher error:', err);
     }
   }
 
   return (
-    <div style={modalStyles.backdrop}>
-      <form onSubmit={handleSubmit} style={modalStyles.modal}>
-        <h2 style={modalStyles.title}>Add Teacher</h2>
-        
-        {/* --- TEACHER'S LOGIN INFO --- */}
-        <div style={modalStyles.row}>
-          <div style={modalStyles.field}>
-            <label style={modalStyles.label}>Login Email *</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email" style={modalStyles.input} required />
-          </div>
-          <div style={modalStyles.field}>
-            <label style={modalStyles.label}>Login Password *</label>
-            <input value={password} onChange={e => setPassword(e.target.value)} type="password" style={modalStyles.input} required />
-          </div>
-        </div>
-        {/* --- END LOGIN INFO --- */}
+    <div style={styles.backdrop}>
+      <form onSubmit={handleSubmit} style={styles.modal}>
+        <h2 style={styles.title}>Add Teacher</h2>
 
-        <div style={modalStyles.row}>
-          <div style={modalStyles.field}>
-            <label style={modalStyles.label}>First Name *</label>
-            <input value={firstName} onChange={e => setFirstName(e.target.value)} style={modalStyles.input} required />
+        <div style={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>Login Email *</label>
+            <input value={email} onChange={e => setEmail(e.target.value)} type="email" style={styles.input} required />
           </div>
-          <div style={modalStyles.field}>
-            <label style={modalStyles.label}>Last Name *</label>
-            <input value={lastName} onChange={e => setLastName(e.target.value)} style={modalStyles.input} required />
+          <div style={styles.field}>
+            <label style={styles.label}>Login Password *</label>
+            <input value={password} onChange={e => setPassword(e.target.value)} type="password" style={styles.input} required placeholder="Min. 6 chars" />
           </div>
         </div>
-        <div style={modalStyles.field}>
-          <label style={modalStyles.label}>Mobile Number *</label>
-          <input value={mobile} onChange={e => setMobile(e.target.value)} style={modalStyles.input} required />
-        </div>
-        <div style={modalStyles.field}>
-          <label style={modalStyles.label}>Address *</label>
-          <input value={address} onChange={e => setAddress(e.target.value)} style={modalStyles.input} required />
-        </div>
-        <div style={modalStyles.row}>
-          <div style={modalStyles.field}>
-            <label style={modalStyles.label}>Salary *</label>
-            <input type="number" value={salary} onChange={e => setSalary(e.target.value)} min={0} style={modalStyles.input} required />
+
+        <hr style={styles.hr} />
+
+        <div style={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>First Name *</label>
+            <input value={firstName} onChange={e => setFirstName(e.target.value)} style={styles.input} required />
           </div>
-          <div style={modalStyles.field}>
-            <label style={modalStyles.label}>Salary Type *</label>
-            <select value={salaryType} onChange={e => setSalaryType(e.target.value)} style={modalStyles.input}>
-              {SALARY_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+          <div style={styles.field}>
+            <label style={styles.label}>Last Name *</label>
+            <input value={lastName} onChange={e => setLastName(e.target.value)} style={styles.input} required />
+          </div>
+        </div>
+
+        <div style={styles.field}>
+          <label style={styles.label}>Mobile Number *</label>
+          <input value={mobile} onChange={e => setMobile(e.target.value)} style={styles.input} required />
+        </div>
+
+        <div style={styles.field}>
+          <label style={styles.label}>Address *</label>
+          <input value={address} onChange={e => setAddress(e.target.value)} style={styles.input} required />
+        </div>
+
+        <div style={styles.row}>
+          <div style={styles.field}>
+            <label style={styles.label}>Salary *</label>
+            <input type="number" value={salary} onChange={e => setSalary(e.target.value)} min={0} style={styles.input} required />
+          </div>
+          <div style={styles.field}>
+            <label style={styles.label}>Salary Type *</label>
+            <select value={salaryType} onChange={e => setSalaryType(e.target.value)} style={styles.input}>
+              {SALARY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         </div>
-        <div style={modalStyles.field}>
-          <label style={modalStyles.label}>Joined Date *</label>
-          <input type="date" value={joinedDate} onChange={e => setJoinedDate(e.target.value)} style={modalStyles.input} required />
+
+        <div style={styles.field}>
+          <label style={styles.label}>Joined Date *</label>
+          <input type="date" value={joinedDate} onChange={e => setJoinedDate(e.target.value)} style={styles.input} required />
         </div>
-        <div style={modalStyles.checkGroup}>
-          <label style={modalStyles.label}>Classes *</label>
-          <div style={modalStyles.checkboxWrap}>
+
+        <div style={styles.checkGroup}>
+          <label style={styles.label}>Classes *</label>
+          <div style={styles.checkboxWrap}>
             {CLASSES.map(c => (
-              <label key={c} style={modalStyles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={classes.includes(c)}
-                  onChange={() => handleCheckbox(classes, setClasses, c)}
-                  style={modalStyles.checkbox}
-                />
+              <label key={c} style={styles.checkboxLabel}>
+                <input type="checkbox" checked={classes.includes(c)} onChange={() => handleCheckbox(classes, setClasses, c)} style={styles.checkbox} />
                 Class {c}
               </label>
             ))}
           </div>
         </div>
-        <div style={modalStyles.checkGroup}>
-          <label style={modalStyles.label}>Subjects *</label>
-          <div style={modalStyles.checkboxWrap}>
+
+        <div style={styles.checkGroup}>
+          <label style={styles.label}>Subjects *</label>
+          <div style={styles.checkboxWrap}>
             {SUBJECTS.map(sub => (
-              <label key={sub} style={modalStyles.checkboxLabel}>
-                <input
-                  type="checkbox"
-                  checked={subjects.includes(sub)}
-                  onChange={() => handleCheckbox(subjects, setSubjects, sub)}
-                  style={modalStyles.checkbox}
-                />
+              <label key={sub} style={styles.checkboxLabel}>
+                <input type="checkbox" checked={subjects.includes(sub)} onChange={() => handleCheckbox(subjects, setSubjects, sub)} style={styles.checkbox} />
                 {sub}
               </label>
             ))}
           </div>
         </div>
-        {error && <div style={modalStyles.error}>{error}</div>}
-        <div style={modalStyles.footer}>
-          <button type="button" onClick={onClose} style={modalStyles.buttonRed}>Cancel</button>
-          <button type="submit" disabled={loading} style={modalStyles.button}>
-            {loading ? 'Saving...' : 'Add Teacher'}
-          </button>
+
+        {error && <div style={styles.error}>{error}</div>}
+
+        <div style={styles.footer}>
+          <button type="button" onClick={onClose} style={styles.buttonRed} disabled={loading}>Cancel</button>
+          <button type="submit" disabled={loading} style={styles.button}>{loading ? 'Saving...' : 'Add Teacher'}</button>
         </div>
       </form>
     </div>
   );
 }
 
-// These are the styles you provided
-const modalStyles = {
-  backdrop: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,.10)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  modal: { background: '#f8fbff', padding: '36px 30px 24px 30px', borderRadius: 15, boxShadow: '0 8px 28px rgba(38, 92, 181, 0.11)', width: '440px', maxWidth: '97vw', fontFamily: 'inherit', border: '1px solid #e3ebfa', maxHeight: '90vh', overflowY: 'auto' }, // Added scroll
-  title: { fontWeight: 700, fontSize: '1.5rem', marginBottom: 23, color: '#1d3557', textAlign: 'center', letterSpacing: '-1px' },
-  label: { fontWeight: 500, color: '#246bfd', fontSize: 15, marginBottom: 2 },
-  row: { display: 'flex', gap: 16, marginBottom: 12 },
-  field: { display: 'flex', flexDirection: 'column', flex: 1, marginBottom: 13 },
-  input: { padding: '10px 11px', fontSize: 16, borderRadius: 7, border: '1px solid #bdd7fa', marginTop: 1, background: '#fff', color: '#22223b', outline: 'none', boxSizing: 'border-box' },
-  checkGroup: { marginBottom: 17 },
-  checkboxWrap: { display: 'flex', flexWrap: 'wrap', gap: 15, marginTop: 6 },
-  checkboxLabel: { fontWeight: 500, fontSize: 15, color: '#234', background: '#f2f6fc', padding: '6px 13px 6px 5px', borderRadius: 6, marginBottom: 4 },
-  checkbox: { marginRight: 7, accentColor: '#2563eb', verticalAlign: 'middle' },
-  error: { color: '#d32f2f', background: '#fff9f9', borderRadius: 7, padding: '7px', margin: '12px 0', textAlign: 'center' },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 11, marginTop: 16 },
-  button: { background: '#2563eb', color: '#fff', fontWeight: 600, border: 0, borderRadius: 8, padding: '10px 23px', fontSize: 16, cursor: 'pointer' },
-  buttonRed: { background: '#f1f5fa', color: '#365175', border: 0, borderRadius: 8, padding: '10px 23px', cursor: 'pointer' }
+/* Styles */
+// paste/replace the `const styles = { ... }` block in AddTeacher.jsx with this
+
+const styles = {
+  backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.10)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  modal: { background: '#f8fbff', padding: '28px 20px', borderRadius: 12, boxShadow: '0 8px 28px rgba(38,92,181,0.08)', width: 520, maxWidth: '96vw', fontFamily: 'inherit', border: '1px solid #e3ebfa', maxHeight: '90vh', overflowY: 'auto' },
+  title: { fontWeight: 700, fontSize: '1.25rem', marginBottom: 14, color: '#1d3557', textAlign: 'center' },
+  label: { fontWeight: 600, color: '#246bfd', fontSize: 14, marginBottom: 6, display: 'block' },
+  row: { display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' },
+  field: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: 140 },
+  input: { padding: '10px 12px', fontSize: 15, borderRadius: 8, border: '1px solid #dbeafe', marginTop: 4, background: '#fff', outline: 'none', boxSizing: 'border-box', color: '#111827' },
+  // add color to selects too
+  select: { padding: '10px 12px', fontSize: 15, borderRadius: 8, border: '1px solid #dbeafe', marginTop: 4, background: '#fff', outline: 'none', boxSizing: 'border-box', color: '#111827' },
+  hr: { border: 'none', borderTop: '1px dashed #e6f0ff', margin: '14px 0' },
+  checkGroup: { marginBottom: 12 },
+  checkboxWrap: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8 },
+  checkboxLabel: { display: 'flex', alignItems: 'center', gap: 8, background: '#f2f7ff', padding: '8px 10px', borderRadius: 8, fontWeight: 600, color: '#111827' },
+  checkbox: { width: 14, height: 14 },
+  error: { color: '#b91c1c', background: '#fff1f0', borderRadius: 8, padding: 10, marginTop: 8, textAlign: 'center' },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 },
+  button: { background: '#2563eb', color: '#fff', fontWeight: 700, border: 0, padding: '10px 18px', borderRadius: 8, cursor: 'pointer' },
+  buttonRed: { background: '#f1f5fa', color: '#365175', fontWeight: 600, border: 0, padding: '10px 16px', borderRadius: 8, cursor: 'pointer' }
 };
+

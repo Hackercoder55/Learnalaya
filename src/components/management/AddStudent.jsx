@@ -23,61 +23,81 @@ export default function AddStudent({ onClose, onSuccess }) {
     ? setArr(arr.filter(v => v !== value))
     : setArr([...arr, value]);
 
+  // finds teachers whose subjects/classes overlap with selection and returns their user_ids
   async function getAssignedTeachers(selectedSubjects, selectedClasses) {
     if (!selectedSubjects.length || !selectedClasses.length) return [];
-    let { data: teachers, error } = await supabase
+    const { data: teachers, error } = await supabase
       .from('teachers')
-      .select('user_id, subjects, classes') // Changed id to user_id
+      .select('user_id, subjects, classes')
       .eq('archived', false);
-    if (error) throw new Error('Could not fetch teachers for assignment!');
-    let eligible = teachers.filter(t =>
-      t.subjects?.some(subject => selectedSubjects.includes(subject)) &&
-      t.classes?.some(cls => selectedClasses.includes(cls))
+
+    if (error) {
+      throw new Error('Could not fetch teachers for assignment: ' + error.message);
+    }
+
+    const eligible = (teachers || []).filter(t =>
+      (t.subjects || []).some(subject => selectedSubjects.includes(subject)) &&
+      (t.classes || []).some(cls => selectedClasses.includes(cls))
     );
-    return eligible.map(t => t.user_id); // Changed t.id to t.user_id
+
+    return eligible.map(t => t.user_id).filter(Boolean);
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setError('');
+
     if (!firstName || !lastName || !parentName || !parentPhone || !address || !fee || classes.length === 0 || subjects.length === 0 || !joinedDate) {
-      setError('Please fill all required fields');
+      setError('Please fill all required fields.');
       setLoading(false);
       return;
     }
+
     let assigned_teacher_ids = [];
     try {
       assigned_teacher_ids = await getAssignedTeachers(subjects, classes);
     } catch (err) {
-      setError('Auto-assign error: ' + err.message);
+      setError('Auto-assign error: ' + (err.message || err));
       setLoading(false);
       return;
     }
-    const { error } = await supabase.from('students').insert({
-      name: `${firstName} ${lastName}`,
-      first_name: firstName,
-      last_name: lastName,
-      parent_name: parentName,
-      parent_whatsapp: parentPhone,
-      address,
-      fee: Number(fee),
-      classes,
-      grade: classes.length > 0 ? `Class ${classes[0]}` : null,
-      subjects,
-      assigned_teacher_ids,
-      joined_date: joinedDate,
-      archived: false
-    });
-    setLoading(false);
-    if (error) setError(error.message);
-    else { onSuccess && onSuccess(); onClose && onClose(); }
+
+    try {
+      const { error: insertError } = await supabase.from('students').insert({
+        name: `${firstName} ${lastName}`.trim(),
+        first_name: firstName,
+        last_name: lastName,
+        parent_name: parentName,
+        parent_whatsapp: parentPhone,
+        address,
+        fee: Number(fee),
+        classes,
+        grade: classes.length > 0 ? `Class ${classes[0]}` : null,
+        subjects,
+        assigned_teacher_ids,
+        joined_date: joinedDate,
+        archived: false
+      });
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      onSuccess && onSuccess();
+      onClose && onClose();
+    } catch (err) {
+      setError(err.message || String(err));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div style={modalStyles.backdrop}>
       <form onSubmit={handleSubmit} style={modalStyles.modal}>
         <h2 style={modalStyles.title}>Add Student</h2>
+
         <div style={modalStyles.row}>
           <div style={modalStyles.field}>
             <label style={modalStyles.label}>First Name *</label>
@@ -88,6 +108,7 @@ export default function AddStudent({ onClose, onSuccess }) {
             <input value={lastName} onChange={e => setLastName(e.target.value)} style={modalStyles.input} required />
           </div>
         </div>
+
         <div style={modalStyles.row}>
           <div style={modalStyles.field}>
             <label style={modalStyles.label}>Parent Name *</label>
@@ -98,18 +119,23 @@ export default function AddStudent({ onClose, onSuccess }) {
             <input value={parentPhone} onChange={e => setParentPhone(e.target.value)} style={modalStyles.input} required />
           </div>
         </div>
+
         <div style={modalStyles.field}>
           <label style={modalStyles.label}>Address *</label>
           <input value={address} onChange={e => setAddress(e.target.value)} style={modalStyles.input} required />
         </div>
-        <div style={modalStyles.field}>
-          <label style={modalStyles.label}>Fee (per month) *</label>
-          <input type="number" value={fee} onChange={e => setFee(e.target.value)} style={modalStyles.input} required />
+
+        <div style={modalStyles.row}>
+          <div style={modalStyles.field}>
+            <label style={modalStyles.label}>Fee (per month) *</label>
+            <input type="number" value={fee} onChange={e => setFee(e.target.value)} style={modalStyles.input} required />
+          </div>
+          <div style={modalStyles.field}>
+            <label style={modalStyles.label}>Joined Date *</label>
+            <input type="date" value={joinedDate} onChange={e => setJoinedDate(e.target.value)} style={modalStyles.input} required />
+          </div>
         </div>
-        <div style={modalStyles.field}>
-          <label style={modalStyles.label}>Joined Date *</label>
-          <input type="date" value={joinedDate} onChange={e => setJoinedDate(e.target.value)} style={modalStyles.input} required />
-        </div>
+
         <div style={modalStyles.checkGroup}>
           <label style={modalStyles.label}>Classes *</label>
           <div style={modalStyles.checkboxWrap}>
@@ -121,6 +147,7 @@ export default function AddStudent({ onClose, onSuccess }) {
             ))}
           </div>
         </div>
+
         <div style={modalStyles.checkGroup}>
           <label style={modalStyles.label}>Subjects *</label>
           <div style={modalStyles.checkboxWrap}>
@@ -132,12 +159,12 @@ export default function AddStudent({ onClose, onSuccess }) {
             ))}
           </div>
         </div>
+
         {error && <div style={modalStyles.error}>{error}</div>}
+
         <div style={modalStyles.footer}>
-          <button type="button" onClick={onClose} style={modalStyles.buttonRed}>Cancel</button>
-          <button type="submit" disabled={loading} style={modalStyles.button}>
-            {loading ? 'Saving...' : 'Add Student'}
-          </button>
+          <button type="button" onClick={onClose} style={modalStyles.buttonRed} disabled={loading}>Cancel</button>
+          <button type="submit" disabled={loading} style={modalStyles.button}>{loading ? 'Saving...' : 'Add Student'}</button>
         </div>
       </form>
     </div>
@@ -145,32 +172,30 @@ export default function AddStudent({ onClose, onSuccess }) {
 }
 
 const modalStyles = {
-  backdrop: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,.10)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  // --- THIS IS THE FIX ---
-  modal: { 
-    background: '#f8fbff', 
-    padding: '36px 30px 24px 30px', 
-    borderRadius: 15, 
-    boxShadow: '0 8px 28px rgba(38, 92, 181, 0.11)', 
-    width: '440px', 
-    maxWidth: '97vw', 
-    fontFamily: 'inherit', 
+  backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.10)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  modal: {
+    background: '#f8fbff',
+    padding: '28px 22px',
+    borderRadius: 12,
+    boxShadow: '0 8px 28px rgba(38, 92, 181, 0.08)',
+    width: 'min(720px, 95vw)',
+    maxWidth: '95vw',
+    fontFamily: 'inherit',
     border: '1px solid #e3ebfa',
-    maxHeight: '90vh', // Added: ensures modal is never taller than 90% of the screen
-    overflowY: 'auto' // Added: makes the modal content scrollable
+    maxHeight: '88vh',
+    overflowY: 'auto'
   },
-  // --- END OF FIX ---
-  title: { fontWeight: 700, fontSize: '1.5rem', marginBottom: 23, color: '#1d3557', textAlign: 'center', letterSpacing: '-1px' },
-  label: { fontWeight: 500, color: '#246bfd', fontSize: 15, marginBottom: 2 },
-  row: { display: 'flex', gap: 16, marginBottom: 12 },
-  field: { display: 'flex', flexDirection: 'column', flex: 1, marginBottom: 13 },
-  input: { padding: '10px 11px', fontSize: 16, borderRadius: 7, border: '1px solid #bdd7fa', marginTop: 1, background: '#fff', color: '#22223b', outline: 'none', boxSizing: 'border-box' },
-  checkGroup: { marginBottom: 17 },
-  checkboxWrap: { display: 'flex', flexWrap: 'wrap', gap: 15, marginTop: 6 },
-  checkboxLabel: { fontWeight: 500, fontSize: 15, color: '#234', background: '#f2f6fc', padding: '6px 13px 6px 5px', borderRadius: 6, marginBottom: 4 },
-  checkbox: { marginRight: 7, accentColor: '#2563eb', verticalAlign: 'middle' },
-  error: { color: '#d32f2f', background: '#fff9f9', borderRadius: 7, padding: '7px', margin: '12px 0', textAlign: 'center' },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 11, marginTop: 16 },
-  button: { background: '#2563eb', color: '#fff', fontWeight: 600, border: 0, borderRadius: 8, padding: '10px 23px', fontSize: 16, cursor: 'pointer' },
-  buttonRed: { background: '#f1f5fa', color: '#365175', border: 0, borderRadius: 8, padding: '10px 23px', cursor: 'pointer' }
+  title: { fontWeight: 700, fontSize: '1.3rem', marginBottom: 16, color: '#1d3557', textAlign: 'center' },
+  label: { fontWeight: 600, color: '#246bfd', fontSize: 14, marginBottom: 6, display: 'block' },
+  row: { display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' },
+  field: { display: 'flex', flexDirection: 'column', flex: 1, marginBottom: 8, minWidth: 120 },
+  input: { padding: '10px 11px', fontSize: 15, borderRadius: 8, border: '1px solid #bdd7fa', marginTop: 4, background: '#fff', color: '#222', outline: 'none', boxSizing: 'border-box' },
+  checkGroup: { marginBottom: 12 },
+  checkboxWrap: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 6 },
+  checkboxLabel: { fontWeight: 500, fontSize: 14, color: '#234', background: '#f2f6fc', padding: '6px 10px', borderRadius: 8, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 },
+  checkbox: { marginRight: 6, accentColor: '#2563eb', verticalAlign: 'middle' },
+  error: { color: '#b91c1c', background: '#fff5f5', borderRadius: 8, padding: 10, margin: '12px 0', textAlign: 'center' },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 },
+  button: { background: '#2563eb', color: '#fff', fontWeight: 700, border: 0, borderRadius: 8, padding: '10px 18px', fontSize: 15, cursor: 'pointer' },
+  buttonRed: { background: '#f1f5fa', color: '#365175', border: 0, borderRadius: 8, padding: '10px 16px', cursor: 'pointer' }
 };
