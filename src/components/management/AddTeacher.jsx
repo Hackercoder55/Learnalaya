@@ -6,7 +6,17 @@ const SUBJECTS = ['Physics', 'Chemistry', 'Maths', 'Biology', 'English', 'Hindi'
 const CLASSES = Array.from({ length: 12 }, (_, i) => i + 1);
 const SALARY_TYPES = ['Monthly', 'Hourly'];
 
+/**
+ * AddTeacher
+ * - Creates an Auth user (email/password) and a teacher profile via Edge Function.
+ * - Uses VITE_CREATE_TEACHER_URL (preferred). If not present, falls back to supabase.functions.invoke.
+ *
+ * Ensure env:
+ *  VITE_CREATE_TEACHER_URL=https://<project>.supabase.co/functions/v1/create_teacher
+ *  VITE_SUPABASE_ANON_KEY=<anon key>  // used only for fetch headers if calling directly
+ */
 export default function AddTeacher({ onClose, onSuccess }) {
+  // profile fields
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [mobile, setMobile] = useState('');
@@ -17,7 +27,7 @@ export default function AddTeacher({ onClose, onSuccess }) {
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses] = useState([]);
 
-  // Login fields
+  // login fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -25,22 +35,35 @@ export default function AddTeacher({ onClose, onSuccess }) {
   const [error, setError] = useState('');
 
   const handleCheckbox = (arr, setArr, value) => {
-    if (arr.includes(value)) setArr(arr.filter(v => v !== value));
+    if (arr.includes(value)) setArr(arr.filter((v) => v !== value));
     else setArr([...arr, value]);
   };
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError('');
 
-    // required fields
-    if (!firstName || !lastName || !mobile || !address || !salary || !joinedDate || subjects.length === 0 || classes.length === 0 || !email || !password) {
-      setError('Please fill all required fields (including email & password).');
+    // basic validation
+    if (
+      !firstName ||
+      !lastName ||
+      !mobile ||
+      !address ||
+      !salary ||
+      !joinedDate ||
+      subjects.length === 0 ||
+      classes.length === 0 ||
+      !email ||
+      !password
+    ) {
+      setError('Please fill out all required fields (including login email & password).');
       setLoading(false);
       return;
     }
 
+    // prepare payload
+    const authData = { email, password };
     const teacherData = {
       name: `${firstName} ${lastName}`,
       first_name: firstName,
@@ -55,148 +78,268 @@ export default function AddTeacher({ onClose, onSuccess }) {
       archived: false,
     };
 
-    const authData = {
-      email,
-      password,
-    };
+    // prefer direct function URL if available (explicit control & debug)
+    const FUNCTION_URL = import.meta.env.VITE_CREATE_TEACHER_URL || '';
+    const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
     try {
-      // Call Edge Function
-      const { data, error: functionError } = await supabase.functions.invoke(
-        'create_teacher',
-        { body: { teacherData, authData } }
-      );
+      let response;
+      let responseText = null;
+      let responseJson = null;
 
-      // On older CLI versions the return structure may differ; check both:
-      if (functionError) throw functionError;
-      if (data?.error) throw new Error(data.error);
+      if (FUNCTION_URL) {
+        // Direct fetch to Edge Function (recommended for debugging)
+        response = await fetch(FUNCTION_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // Supabase requires apikey header for function calls from client-side:
+            apikey: ANON_KEY || '',
+            // Authorization header optional, usually Bearer <anon> is not required for public function but ok to include
+            // Authorization: `Bearer ${ANON_KEY || ''}`,
+          },
+          body: JSON.stringify({ teacherData, authData }),
+        });
+
+        responseText = await response.text();
+        try { responseJson = JSON.parse(responseText); } catch (err) { /* not json */ }
+
+        console.group('create_teacher direct fetch response');
+        console.log('status:', response.status);
+        console.log('ok:', response.ok);
+        console.log('raw:', responseText);
+        if (responseJson) console.log('json:', responseJson);
+        console.groupEnd();
+
+        if (!response.ok) {
+          const serverMsg = (responseJson && (responseJson.error || responseJson.message)) ? (responseJson.error || responseJson.message) : responseText || `HTTP ${response.status}`;
+          throw new Error(serverMsg);
+        }
+      } else if (supabase?.functions?.invoke) {
+        // Fallback: use supabase client functions invoke
+        const { data, error: fnErr } = await supabase.functions.invoke('create_teacher', {
+          body: { teacherData, authData },
+        });
+
+        console.group('create_teacher supabase.functions.invoke response');
+        console.log('data:', data);
+        console.log('error:', fnErr);
+        console.groupEnd();
+
+        if (fnErr) throw fnErr;
+        if (data && data.error) throw new Error(data.error || 'Edge function returned error');
+      } else {
+        throw new Error('No function URL configured and supabase.functions.invoke not available.');
+      }
 
       // success
       setLoading(false);
       onSuccess && onSuccess();
       onClose && onClose();
     } catch (err) {
-      // better error messages
-      const message = err?.message || JSON.stringify(err) || 'Failed to add teacher';
-      setError(message);
-      setLoading(false);
       console.error('AddTeacher error:', err);
+      setError(err.message || 'Edge Function returned a non-2xx status code');
+      setLoading(false);
     }
   }
 
   return (
-    <div style={styles.backdrop}>
-      <form onSubmit={handleSubmit} style={styles.modal}>
-        <h2 style={styles.title}>Add Teacher</h2>
+    <div style={modalStyles.backdrop}>
+      <form onSubmit={handleSubmit} style={modalStyles.modal}>
+        <h2 style={modalStyles.title}>Add Teacher</h2>
 
-        <div style={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>Login Email *</label>
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email" style={styles.input} required />
+        {/* Login fields */}
+        <div style={modalStyles.row}>
+          <div style={modalStyles.field}>
+            <label style={modalStyles.label}>Login Email *</label>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              style={modalStyles.input}
+              required
+              placeholder="teacher@school.com"
+            />
           </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Login Password *</label>
-            <input value={password} onChange={e => setPassword(e.target.value)} type="password" style={styles.input} required placeholder="Min. 6 chars" />
+          <div style={modalStyles.field}>
+            <label style={modalStyles.label}>Login Password *</label>
+            <input
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              style={modalStyles.input}
+              required
+              placeholder="Min 6 characters"
+            />
           </div>
         </div>
 
-        <hr style={styles.hr} />
+        <hr style={modalStyles.hr} />
 
-        <div style={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>First Name *</label>
-            <input value={firstName} onChange={e => setFirstName(e.target.value)} style={styles.input} required />
+        {/* Name */}
+        <div style={modalStyles.row}>
+          <div style={modalStyles.field}>
+            <label style={modalStyles.label}>First Name *</label>
+            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} style={modalStyles.input} required />
           </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Last Name *</label>
-            <input value={lastName} onChange={e => setLastName(e.target.value)} style={styles.input} required />
+          <div style={modalStyles.field}>
+            <label style={modalStyles.label}>Last Name *</label>
+            <input value={lastName} onChange={(e) => setLastName(e.target.value)} style={modalStyles.input} required />
           </div>
         </div>
 
-        <div style={styles.field}>
-          <label style={styles.label}>Mobile Number *</label>
-          <input value={mobile} onChange={e => setMobile(e.target.value)} style={styles.input} required />
+        {/* Contact & Address */}
+        <div style={modalStyles.field}>
+          <label style={modalStyles.label}>Mobile Number *</label>
+          <input value={mobile} onChange={(e) => setMobile(e.target.value)} style={modalStyles.input} required />
+        </div>
+        <div style={modalStyles.field}>
+          <label style={modalStyles.label}>Address *</label>
+          <input value={address} onChange={(e) => setAddress(e.target.value)} style={modalStyles.input} required />
         </div>
 
-        <div style={styles.field}>
-          <label style={styles.label}>Address *</label>
-          <input value={address} onChange={e => setAddress(e.target.value)} style={styles.input} required />
-        </div>
-
-        <div style={styles.row}>
-          <div style={styles.field}>
-            <label style={styles.label}>Salary *</label>
-            <input type="number" value={salary} onChange={e => setSalary(e.target.value)} min={0} style={styles.input} required />
+        {/* Salary & Type */}
+        <div style={modalStyles.row}>
+          <div style={modalStyles.field}>
+            <label style={modalStyles.label}>Salary *</label>
+            <input type="number" value={salary} onChange={(e) => setSalary(e.target.value)} min={0} style={modalStyles.input} required />
           </div>
-          <div style={styles.field}>
-            <label style={styles.label}>Salary Type *</label>
-            <select value={salaryType} onChange={e => setSalaryType(e.target.value)} style={styles.input}>
-              {SALARY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          <div style={modalStyles.field}>
+            <label style={modalStyles.label}>Salary Type *</label>
+            <select value={salaryType} onChange={(e) => setSalaryType(e.target.value)} style={modalStyles.input}>
+              {SALARY_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
-        <div style={styles.field}>
-          <label style={styles.label}>Joined Date *</label>
-          <input type="date" value={joinedDate} onChange={e => setJoinedDate(e.target.value)} style={styles.input} required />
+        {/* Joined Date */}
+        <div style={modalStyles.field}>
+          <label style={modalStyles.label}>Joined Date *</label>
+          <input type="date" value={joinedDate} onChange={(e) => setJoinedDate(e.target.value)} style={modalStyles.input} required />
         </div>
 
-        <div style={styles.checkGroup}>
-          <label style={styles.label}>Classes *</label>
-          <div style={styles.checkboxWrap}>
-            {CLASSES.map(c => (
-              <label key={c} style={styles.checkboxLabel}>
-                <input type="checkbox" checked={classes.includes(c)} onChange={() => handleCheckbox(classes, setClasses, c)} style={styles.checkbox} />
+        {/* Classes */}
+        <div style={modalStyles.checkGroup}>
+          <label style={modalStyles.label}>Classes *</label>
+          <div style={modalStyles.checkboxWrap}>
+            {CLASSES.map((c) => (
+              <label key={c} style={modalStyles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={classes.includes(c)}
+                  onChange={() => handleCheckbox(classes, setClasses, c)}
+                  style={modalStyles.checkbox}
+                />
                 Class {c}
               </label>
             ))}
           </div>
         </div>
 
-        <div style={styles.checkGroup}>
-          <label style={styles.label}>Subjects *</label>
-          <div style={styles.checkboxWrap}>
-            {SUBJECTS.map(sub => (
-              <label key={sub} style={styles.checkboxLabel}>
-                <input type="checkbox" checked={subjects.includes(sub)} onChange={() => handleCheckbox(subjects, setSubjects, sub)} style={styles.checkbox} />
+        {/* Subjects */}
+        <div style={modalStyles.checkGroup}>
+          <label style={modalStyles.label}>Subjects *</label>
+          <div style={modalStyles.checkboxWrap}>
+            {SUBJECTS.map((sub) => (
+              <label key={sub} style={modalStyles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={subjects.includes(sub)}
+                  onChange={() => handleCheckbox(subjects, setSubjects, sub)}
+                  style={modalStyles.checkbox}
+                />
                 {sub}
               </label>
             ))}
           </div>
         </div>
 
-        {error && <div style={styles.error}>{error}</div>}
+        {/* Error & buttons */}
+        {error && <div style={modalStyles.error}>{error}</div>}
 
-        <div style={styles.footer}>
-          <button type="button" onClick={onClose} style={styles.buttonRed} disabled={loading}>Cancel</button>
-          <button type="submit" disabled={loading} style={styles.button}>{loading ? 'Saving...' : 'Add Teacher'}</button>
+        <div style={modalStyles.footer}>
+          <button type="button" onClick={onClose} style={modalStyles.buttonRed} disabled={loading}>
+            Cancel
+          </button>
+          <button type="submit" disabled={loading} style={modalStyles.button}>
+            {loading ? 'Saving...' : 'Add Teacher'}
+          </button>
         </div>
       </form>
     </div>
   );
 }
 
-/* Styles */
-// paste/replace the `const styles = { ... }` block in AddTeacher.jsx with this
-
-const styles = {
-  backdrop: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,.10)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  modal: { background: '#f8fbff', padding: '28px 20px', borderRadius: 12, boxShadow: '0 8px 28px rgba(38,92,181,0.08)', width: 520, maxWidth: '96vw', fontFamily: 'inherit', border: '1px solid #e3ebfa', maxHeight: '90vh', overflowY: 'auto' },
-  title: { fontWeight: 700, fontSize: '1.25rem', marginBottom: 14, color: '#1d3557', textAlign: 'center' },
-  label: { fontWeight: 600, color: '#246bfd', fontSize: 14, marginBottom: 6, display: 'block' },
-  row: { display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' },
-  field: { display: 'flex', flexDirection: 'column', flex: 1, minWidth: 140 },
-  input: { padding: '10px 12px', fontSize: 15, borderRadius: 8, border: '1px solid #dbeafe', marginTop: 4, background: '#fff', outline: 'none', boxSizing: 'border-box', color: '#111827' },
-  // add color to selects too
-  select: { padding: '10px 12px', fontSize: 15, borderRadius: 8, border: '1px solid #dbeafe', marginTop: 4, background: '#fff', outline: 'none', boxSizing: 'border-box', color: '#111827' },
-  hr: { border: 'none', borderTop: '1px dashed #e6f0ff', margin: '14px 0' },
-  checkGroup: { marginBottom: 12 },
-  checkboxWrap: { display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 8 },
-  checkboxLabel: { display: 'flex', alignItems: 'center', gap: 8, background: '#f2f7ff', padding: '8px 10px', borderRadius: 8, fontWeight: 600, color: '#111827' },
-  checkbox: { width: 14, height: 14 },
-  error: { color: '#b91c1c', background: '#fff1f0', borderRadius: 8, padding: 10, marginTop: 8, textAlign: 'center' },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 12 },
-  button: { background: '#2563eb', color: '#fff', fontWeight: 700, border: 0, padding: '10px 18px', borderRadius: 8, cursor: 'pointer' },
-  buttonRed: { background: '#f1f5fa', color: '#365175', fontWeight: 600, border: 0, padding: '10px 16px', borderRadius: 8, cursor: 'pointer' }
+/* Styles (kept consistent with your app) */
+const modalStyles = {
+  backdrop: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,.10)',
+    zIndex: 9999,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+  },
+  modal: {
+    background: '#f8fbff',
+    padding: '26px 26px 20px 26px',
+    borderRadius: 14,
+    boxShadow: '0 8px 28px rgba(38, 92, 181, 0.08)',
+    width: '520px',
+    maxWidth: '98vw',
+    fontFamily: 'inherit',
+    border: '1px solid #e3ebfa',
+    maxHeight: '90vh',
+    overflowY: 'auto',
+  },
+  title: { fontWeight: 700, fontSize: '1.3rem', marginBottom: 18, color: '#1d3557', textAlign: 'center' },
+  label: { fontWeight: 600, color: '#246bfd', fontSize: 14, marginBottom: 8, display: 'block' },
+  row: { display: 'flex', gap: 12, marginBottom: 12 },
+  field: { display: 'flex', flexDirection: 'column', flex: 1, marginBottom: 12 },
+  input: {
+    padding: '10px 12px',
+    fontSize: 15,
+    borderRadius: 8,
+    border: '1px solid #ddeffd',
+    marginTop: 4,
+    background: '#fff',
+    color: '#111827',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  hr: { border: 'none', borderTop: '1px dashed #e6f0ff', margin: '12px 0 18px' },
+  checkGroup: { marginBottom: 16 },
+  checkboxWrap: { display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 6 },
+  checkboxLabel: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 8,
+    fontWeight: 600,
+    fontSize: 14,
+    color: '#25304b',
+    background: '#f2f8ff',
+    padding: '9px 12px',
+    borderRadius: 10,
+  },
+  checkbox: { width: 14, height: 14, marginRight: 6 },
+  error: {
+    color: '#b91c1c',
+    background: '#fff5f5',
+    borderRadius: 8,
+    padding: '10px 12px',
+    margin: '10px 0',
+    textAlign: 'center',
+  },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 },
+  button: { background: '#2563eb', color: '#fff', fontWeight: 700, border: 0, borderRadius: 8, padding: '10px 20px', cursor: 'pointer' },
+  buttonRed: { background: '#f1f5fa', color: '#365175', border: 0, borderRadius: 8, padding: '10px 18px', cursor: 'pointer' },
 };
-
