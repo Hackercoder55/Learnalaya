@@ -1,13 +1,8 @@
 ﻿// supabase/functions/create_teacher/index.ts
-// At top of supabase/functions/create_teacher/index.ts
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.35.0/+esm';
-// or: import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.35.0';
-
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
-  // Preflight response
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
