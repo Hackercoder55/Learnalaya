@@ -1,0 +1,35 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  push:
+    branches: [ main ]   # change to 'master' if your repo uses master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install supabase CLI
+        run: npm install -g supabase
+
+      - name: Supabase Login
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase login --token "$SUPABASE_ACCESS_TOKEN"
+
+      - name: Deploy Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF" || true
+          supabase functions deploy send_whatsapp --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy send_otp --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy twilio_bridge --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy create_teacher --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
