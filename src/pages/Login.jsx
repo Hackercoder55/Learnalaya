@@ -63,67 +63,88 @@ export default function Login() {
 const styles = {
   bg: {
     minHeight: '100vh',
-    background: 'linear-gradient(135deg, #e0e7ff, #f2f4fa 60%)',
+    background: 'var(--bg-gradient)',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    padding: '20px'
   },
   card: {
-    background: '#fff',
-    padding: '44px 38px 32px 38px',
-    borderRadius: '16px',
-    boxShadow: '0 8px 34px rgba(58, 98, 191, 0.11)',
-    width: '360px',
-    maxWidth: '97vw',
+    background: 'var(--bg-surface)',
+    padding: '48px 40px',
+    borderRadius: 'var(--radius-xl)',
+    boxShadow: 'var(--shadow-xl)',
+    width: '100%',
+    maxWidth: '420px',
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center'
+    alignItems: 'center',
+    border: '1px solid var(--gray-200)',
+    position: 'relative',
+    overflow: 'hidden'
   },
   logo: {
     fontWeight: 800,
-    fontSize: '2.2rem',
-    color: '#1976d2',
-    marginBottom: 18,
-    fontFamily: 'Montserrat, Arial, sans-serif',
-    letterSpacing: '-2px'
+    fontSize: '2.5rem',
+    background: 'linear-gradient(135deg, var(--primary-600), var(--primary-500))',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    marginBottom: '8px',
+    fontFamily: 'Montserrat, system-ui, sans-serif',
+    letterSpacing: '-1px'
+  },
+  subtitle: {
+    color: 'var(--gray-500)',
+    fontSize: '0.95rem',
+    marginBottom: '32px',
+    textAlign: 'center'
   },
   form: {
     width: '100%',
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    gap: '16px'
   },
   heading: {
-    color: '#23244c',
-    fontSize: '1.06rem',
+    color: 'var(--gray-900)',
+    fontSize: '1.5rem',
     textAlign: 'center',
-    marginBottom: 26,
-    fontWeight: 500
+    marginBottom: '8px',
+    fontWeight: 700
   },
   input: {
-    padding: '13px 10px',
-    marginBottom: 18,
-    borderRadius: 8,
-    border: '1px solid #dbe6ea',
+    width: '100%',
+    padding: '12px 16px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--gray-300)',
     fontSize: '16px',
-    outline: 'none'
+    outline: 'none',
+    transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
+    backgroundColor: 'var(--gray-50)',
+    color: 'var(--gray-900)',
+    boxSizing: 'border-box'
   },
   button: {
-    background: '#2563eb',
+    background: 'var(--primary-600)',
     color: '#fff',
     fontWeight: 600,
     border: 0,
-    borderRadius: 8,
-    padding: '13px 0px',
-    fontSize: '17px',
+    borderRadius: 'var(--radius-md)',
+    padding: '14px',
+    fontSize: '16px',
     cursor: 'pointer',
-    marginTop: 6
+    marginTop: '8px',
+    transition: 'background-color var(--transition-fast), transform var(--transition-fast)',
+    boxShadow: 'var(--shadow-md)'
   },
   error: {
-    color: '#d32f2f',
-    background: '#fff8f8',
-    padding: '8px',
-    borderRadius: 6,
+    color: 'var(--error)',
+    background: '#fef2f2',
+    border: '1px solid #fee2e2',
+    padding: '12px',
+    borderRadius: 'var(--radius-md)',
     textAlign: 'center',
-    marginBottom: 8
+    marginBottom: '16px',
+    fontSize: '0.9rem'
   }
 };

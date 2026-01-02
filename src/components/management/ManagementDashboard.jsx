@@ -7,18 +7,18 @@ import TeachersPanel from './TeachersPanel';
 import FeesPanel from './FeesPanel';
 import ExpensesPanel from './ExpensesPanel';
 import { useAuth } from '../../hooks/useAuth';
-import { Link } from 'react-router-dom'; 
+import { Link } from 'react-router-dom';
 
 export default function ManagementDashboard() {
   const [summaryStats, setSummaryStats] = useState({
     students: 0,
     teachers: 0,
     newStudentsMonthly: 0,
-    revenueMonthly: 0, 
+    revenueMonthly: 0,
   });
-  
+
   const [tab, setTab] = useState('students');
-  const { logout } = useAuth(); 
+  const { logout } = useAuth();
 
   async function fetchData() {
     const today = new Date();
@@ -27,18 +27,18 @@ export default function ManagementDashboard() {
 
     const { data: students } = await supabase.from('students').select('fee').eq('archived', false);
     const { data: teachers } = await supabase.from('teachers').select('salary').eq('archived', false);
-    
+
     const { data: newStudents } = await supabase
       .from('students')
       .select('id')
       .eq('archived', false)
       .gte('joined_date', firstDayOfMonth);
-      
+
     const { data: paidFees } = await supabase
       .from('fee_transactions')
       .select('amount_paid')
       .gte('payment_date', firstDayOfMonth);
-    
+
     const monthlyRevenue = (paidFees || []).reduce((sum, fee) => sum + (Number(fee.amount_paid) || 0), 0);
 
     setSummaryStats({
@@ -56,12 +56,12 @@ export default function ManagementDashboard() {
   const onDataUpdate = () => {
     fetchData();
   };
-  
+
   return (
-    <div style={styles.outer}> 
-      
+    <div style={styles.outer}>
+
       <div style={styles.summaryRow}>
-        
+
         <Link to="/report/students" style={summaryStyles.cardLink}>
           <div style={summaryStyles.card}>
             <div style={summaryStyles.label}>🧑‍🎓 Total Students</div>
@@ -69,7 +69,7 @@ export default function ManagementDashboard() {
             <div style={summaryStyles.note}>Click to see new students per month</div>
           </div>
         </Link>
-        
+
         <div style={summaryStyles.card}>
           <div style={summaryStyles.label}>👩‍🏫 Total Teachers</div>
           <div style={summaryStyles.value}>{summaryStats.teachers}</div>
@@ -81,7 +81,7 @@ export default function ManagementDashboard() {
             <div style={summaryStyles.note}>Click to see students left per month</div>
           </div>
         </Link>
-        
+
         <Link to="/report/revenue" style={summaryStyles.cardLink}>
           <div style={summaryStyles.card}>
             <div style={summaryStyles.label}>💵 Revenue (This Month)</div>
@@ -89,7 +89,7 @@ export default function ManagementDashboard() {
             <div style={summaryStyles.note}>Click to see monthly trend</div>
           </div>
         </Link>
-        
+
       </div>
 
       <div style={styles.tabRow}>
@@ -111,52 +111,55 @@ export default function ManagementDashboard() {
 
 // --- STYLES (FIXED) ---
 const styles = {
-  outer: { fontFamily: 'inherit' }, 
-  summaryRow: { 
+  outer: { fontFamily: 'inherit' },
+  summaryRow: {
     display: 'grid',
     // This is the responsive grid, it's valid JS
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: '24px', 
-    margin: '1rem 0 2.2rem 0',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: '24px',
+    margin: '1rem 0 2.5rem 0',
   },
-  tabRow: { 
-    display: 'flex', 
-    gap: '10px',
-    marginBottom: 18, 
-    borderBottom: '1px solid #e1e8f3', 
-    paddingBottom: '10px',
+  tabRow: {
+    display: 'flex',
+    gap: '4px',
+    marginBottom: 24,
+    borderBottom: '1px solid var(--gray-200)',
+    paddingBottom: '0',
     flexWrap: 'wrap'
   },
-  tab: { 
-    background: 'none', color: '#475569', fontWeight: 700, 
-    border: 0, borderBottom: '3px solid transparent', 
-    borderRadius: '9px 9px 0 0', padding: '12px 20px', fontSize: 16, 
-    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' 
+  tab: {
+    background: 'none', color: 'var(--gray-500)', fontWeight: 600,
+    border: 0, borderBottom: '2px solid transparent',
+    borderRadius: 'var(--radius-md) var(--radius-md) 0 0', padding: '12px 24px', fontSize: 15,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+    transition: 'all var(--transition-fast)'
   },
-  activeTab: { 
-    background: '#fff', color: '#2563eb', fontWeight: 700, 
-    border: 0, borderBottom: '3px solid #2563eb', 
-    borderRadius: '9px 9px 0 0', padding: '12px 20px', fontSize: 16, 
-    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', 
-    boxShadow: '0 -2px 10px rgba(38,92,181,.05)' 
+  activeTab: {
+    background: 'var(--bg-surface)', color: 'var(--primary-600)', fontWeight: 600,
+    border: 0, borderBottom: '2px solid var(--primary-600)',
+    borderRadius: 'var(--radius-md) var(--radius-md) 0 0', padding: '12px 24px', fontSize: 15,
+    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+    // boxShadow: 'var(--shadow-sm)' 
   }
 };
 
 const summaryStyles = {
   cardLink: { textDecoration: 'none' },
-  card: { 
-    background: '#fff', padding: '24px', borderRadius: 12,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.05)', border: '1px solid #e5e7eb',
+  card: {
+    background: 'var(--bg-surface)', padding: '24px', borderRadius: 'var(--radius-lg)',
+    boxShadow: 'var(--shadow-sm)', border: '1px solid var(--gray-200)',
     transition: 'transform 0.2s, box-shadow 0.2s',
+    height: '100%',
+    boxSizing: 'border-box'
   },
   label: {
-    fontSize: 15, fontWeight: 600, color: '#4b5563',
-    display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px',
+    fontSize: 14, fontWeight: 600, color: 'var(--gray-500)', textTransform: 'uppercase', letterSpacing: '0.05em',
+    display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px',
   },
-  value: { 
-    fontSize: 32, fontWeight: 700, color: '#111827', textAlign: 'left',
+  value: {
+    fontSize: 32, fontWeight: 800, color: 'var(--gray-900)', textAlign: 'left',
   },
   note: {
-    fontSize: 12, color: '#9ca3af', marginTop: '4px',
+    fontSize: 13, color: 'var(--gray-400)', marginTop: '8px', fontWeight: 500
   }
 };

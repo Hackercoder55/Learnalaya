@@ -3,23 +3,26 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../api/supabaseClient';
 import AddStudent from './AddStudent';
-import ProfileUploadModal from './ProfileUploadModal'; 
+import ProfileUploadModal from './ProfileUploadModal';
 import { Link } from 'react-router-dom';
 // 1. IMPORT THE NEW EDIT MODAL
-import EditStudentModal from './EditStudentModal'; 
+import EditStudentModal from './EditStudentModal';
 
-export default function StudentsPanel({ onUpdate }) { 
+import { seedDemoStudents } from '../../utils/demoData';
+
+export default function StudentsPanel({ onUpdate }) {
   const [students, setStudents] = useState([]);
   const [archived, setArchived] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
   // 2. ADD STATE FOR MODALS AND SEARCH
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [editStudent, setEditStudent] = useState(null); // Will hold the student to edit
-  const [uploadTarget, setUploadTarget] = useState(null); 
+  const [uploadTarget, setUploadTarget] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  
+  const [seeding, setSeeding] = useState(false);
+
   const [selectedClass, setSelectedClass] = useState(null);
 
   async function fetchStudents() {
@@ -46,10 +49,25 @@ export default function StudentsPanel({ onUpdate }) {
     fetchStudents();
   }, []);
 
+  async function handleSeed() {
+    if (!window.confirm('Add 5 demo students?')) return;
+    setSeeding(true);
+    try {
+      await seedDemoStudents();
+      await fetchStudents();
+      onUpdate();
+      alert('Demo students added!');
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setSeeding(false);
+    }
+  }
+
   async function archiveStudent(id) {
     const { error } = await supabase
       .from('students')
-      .update({ 
+      .update({
         archived: true,
         archived_at: new Date().toISOString()
       })
@@ -58,12 +76,12 @@ export default function StudentsPanel({ onUpdate }) {
     await fetchStudents();
     onUpdate();
   }
-  
+
   // 3. NEW FUNCTION TO RE-ENROLL A STUDENT
   async function unarchiveStudent(id) {
     const { error } = await supabase
       .from('students')
-      .update({ 
+      .update({
         archived: false,
         archived_at: null // Clear the archived date
       })
@@ -72,7 +90,7 @@ export default function StudentsPanel({ onUpdate }) {
     await fetchStudents();
     onUpdate();
   }
-  
+
   const getFilterStyle = (filterValue) => {
     return {
       background: selectedClass === filterValue ? '#2563eb' : '#f1f5f9',
@@ -84,12 +102,12 @@ export default function StudentsPanel({ onUpdate }) {
       cursor: 'pointer'
     };
   };
-  
+
   const handlePhotoUpdate = (updatedUrl) => {
-    setStudents(prev => prev.map(s => s.id === uploadTarget.id ? {...s, avatar_url: updatedUrl} : s));
+    setStudents(prev => prev.map(s => s.id === uploadTarget.id ? { ...s, avatar_url: updatedUrl } : s));
     setUploadTarget(null);
   };
-  
+
   // 4. NEW: Filtered list for search and class
   const filteredActiveStudents = students
     .filter(s => selectedClass ? (s.classes || []).includes(selectedClass) : true)
@@ -117,7 +135,7 @@ export default function StudentsPanel({ onUpdate }) {
           }}
         />
       }
-      {uploadTarget && 
+      {uploadTarget &&
         <ProfileUploadModal
           profile={`Student: ${uploadTarget.name}`}
           table="students"
@@ -126,7 +144,7 @@ export default function StudentsPanel({ onUpdate }) {
           onUpdate={handlePhotoUpdate}
         />
       }
-      
+
       <div style={{ display: 'flex', gap: 10, marginBottom: 18, justifyContent: 'left', flexWrap: 'wrap' }}>
         {[...Array(12)].map((_, i) =>
           <button style={getFilterStyle(i + 1)} onClick={() => setSelectedClass(i + 1)} key={i + 1}>Class {i + 1}</button>
@@ -134,7 +152,7 @@ export default function StudentsPanel({ onUpdate }) {
         <button style={getFilterStyle(null)} onClick={() => setSelectedClass(null)}>All</button>
         <button style={getFilterStyle('archived')} onClick={() => setSelectedClass('archived')}>Archived</button>
       </div>
-      
+
       <div style={styles.topRow}>
         <h3 style={styles.heading}>{selectedClass === 'archived' ? 'Archived Students' : 'All Active Students'}</h3>
         {/* 6. ADD THE NEW SEARCH BAR */}
@@ -147,40 +165,45 @@ export default function StudentsPanel({ onUpdate }) {
             style={styles.searchInput}
           />
         )}
-        <button style={styles.addBtn} onClick={() => setIsAddOpen(true)}>
-          + Add New Student
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button style={{ ...styles.addBtn, background: '#6366f1' }} onClick={handleSeed} disabled={seeding}>
+            {seeding ? 'Adding...' : '+ Add Demo Students'}
+          </button>
+          <button style={styles.addBtn} onClick={() => setIsAddOpen(true)}>
+            + Add New Student
+          </button>
+        </div>
       </div>
 
       {error && <div style={styles.error}>{error}</div>}
 
-      <div style={styles.responsiveTableWrapper}> 
+      <div style={styles.responsiveTableWrapper}>
         {selectedClass !== 'archived' && (
           <div style={styles.listWrap}>
             {loading ? <div style={styles.loading}>Loading...</div>
               : filteredActiveStudents.length === 0 ? <div style={styles.empty}>No students match your search.</div>
-              : (
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Photo</th> 
-                      <th style={styles.th}>Name</th>
-                      <th style={styles.th}>Class</th>
-                      <th style={styles.th}>Subjects</th>
-                      <th style={styles.th}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredActiveStudents.map(stu => (
+                : (
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Photo</th>
+                        <th style={styles.th}>Name</th>
+                        <th style={styles.th}>Class</th>
+                        <th style={styles.th}>Subjects</th>
+                        <th style={styles.th}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredActiveStudents.map(stu => (
                         <tr key={stu.id}>
                           <td style={styles.td}>
-                            <button 
-                              onClick={() => setUploadTarget(stu)} 
+                            <button
+                              onClick={() => setUploadTarget(stu)}
                               style={styles.uploadLink}
                             >
                               {stu.avatar_url ? 'View' : 'Upload'}
                             </button>
-                          </td> 
+                          </td>
                           <td style={styles.td}>
                             <Link to={`/report/student/${stu.id}`} style={styles.linkBtn}>
                               {stu.name}
@@ -195,14 +218,14 @@ export default function StudentsPanel({ onUpdate }) {
                           </td>
                         </tr>
                       ))}
-                  </tbody>
-                </table>
-              )
+                    </tbody>
+                  </table>
+                )
             }
           </div>
         )}
-      </div> 
-      
+      </div>
+
       <div style={styles.responsiveTableWrapper}>
         {selectedClass === 'archived' && (
           <div style={styles.listWrap}>
@@ -246,13 +269,13 @@ const styles = {
     width: '100%',
     overflowX: 'auto',
   },
-  topRow: { 
-    display: 'flex', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
+  topRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: '24px',
-    flexWrap: 'wrap', 
-    gap: '10px' 
+    flexWrap: 'wrap',
+    gap: '10px'
   },
   heading: { fontWeight: 700, fontSize: '1.14rem', color: '#1d3557', marginBottom: 0, marginRight: 'auto' },
   // 9. NEW SEARCH BAR STYLE
@@ -268,20 +291,20 @@ const styles = {
     minWidth: '200px',
   },
   addBtn: { background: '#2563eb', color: '#fff', borderRadius: 9, fontWeight: 600, border: 0, padding: '10px 24px', cursor: 'pointer', fontSize: 15 },
-  listWrap: { 
-    background: '#fff', 
-    borderRadius: 12, 
-    boxShadow: '0 2px 10px rgba(0,0,0,0.03)', 
-    minHeight: 50, 
-    padding: '0.5rem', 
+  listWrap: {
+    background: '#fff',
+    borderRadius: 12,
+    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+    minHeight: 50,
+    padding: '0.5rem',
     marginBottom: '1.5rem',
     overflowX: 'auto'
   },
   loading: { color: '#2563eb', textAlign: 'center', margin: '36px 0' },
   empty: { color: '#7a8194', textAlign: 'center', padding: '48px 10px', fontSize: 15 },
-  table: { 
-    width: '100%', 
-    borderCollapse: 'collapse', 
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse',
     marginBottom: 10,
     minWidth: '600px'
   },

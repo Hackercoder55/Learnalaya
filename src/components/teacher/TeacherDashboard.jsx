@@ -201,39 +201,76 @@ export default function TeacherDashboard() {
 }
 
 // STYLES (kept consistent and responsive)
+// STYLES (kept consistent and responsive)
 const styles = {
-  bg: { minHeight: '100vh', background: 'linear-gradient(135deg, #dbeafe 0%, #f0fdfa 100%)', paddingTop: 28, paddingBottom: 40 },
+  bg: { minHeight: '100%', background: 'transparent' }, // Handled by variable.css global body
   container: {
     width: '100%',
-    maxWidth: 1000,   // allow a bit wider on desktop
-    margin: '0 auto',
-    padding: '36px 18px',
+    padding: '0',
     boxSizing: 'border-box'
   },
 
-  profileHeader: { display: 'flex', alignItems: 'center', gap: 20, padding: '18px', backgroundColor: '#fff', borderRadius: 14, boxShadow: '0 4px 14px rgba(16,24,40,0.04)' },
-  avatar: { width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid #0ea5e9', marginRight: 16 },
-  title: { fontSize: '1.8rem', fontWeight: 800, margin: 0, color: '#0f172a' },
-  subtitle: { margin: '6px 0 0', color: '#2563eb', fontSize: 15 },
-  email: { color: '#0ea5e9' },
+  profileHeader: {
+    display: 'flex', alignItems: 'center', gap: 20, padding: '24px',
+    backgroundColor: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)',
+    boxShadow: 'var(--shadow-sm)', border: '1px solid var(--gray-200)',
+    flexWrap: 'wrap'
+  },
+  avatar: {
+    width: 80, height: 80, borderRadius: '50%', objectFit: 'cover',
+    border: '4px solid var(--primary-100)', marginRight: 16
+  },
+  title: { fontSize: '1.5rem', fontWeight: 800, margin: 0, color: 'var(--gray-900)' },
+  subtitle: { margin: '4px 0 0', color: 'var(--primary-600)', fontSize: 15, fontWeight: 500 },
+  email: { color: 'var(--primary-500)' },
 
-  actionsRow: { display: 'flex', gap: 12, marginTop: 18, background: '#fff', padding: 12, borderRadius: 12, justifyContent: 'center', flexWrap: 'wrap', boxShadow: '0 6px 24px rgba(16,24,40,0.03)' },
-  actionButton: { background: '#f8fafc', color: '#0f172a', fontWeight: 700, borderRadius: 8, padding: '10px 16px', border: 'none', cursor: 'pointer' },
-  actionButtonActive: { background: '#2563eb', color: '#fff', fontWeight: 700, borderRadius: 8, padding: '10px 16px', border: 'none', cursor: 'pointer' },
+  actionsRow: {
+    display: 'flex', gap: 12, marginTop: 24,
+    background: 'var(--bg-surface)', padding: 16, borderRadius: 'var(--radius-lg)',
+    justifyContent: 'flex-start', flexWrap: 'wrap',
+    boxShadow: 'var(--shadow-sm)', border: '1px solid var(--gray-200)'
+  },
+  actionButton: {
+    background: 'var(--gray-50)', color: 'var(--gray-700)', fontWeight: 600,
+    borderRadius: 'var(--radius-md)', padding: '10px 20px', border: '1px solid var(--gray-200)',
+    cursor: 'pointer', transition: 'all var(--transition-fast)'
+  },
+  actionButtonActive: {
+    background: 'var(--primary-50)', color: 'var(--primary-700)', fontWeight: 600,
+    borderRadius: 'var(--radius-md)', padding: '10px 20px', border: '1px solid var(--primary-200)',
+    cursor: 'pointer', transition: 'all var(--transition-fast)'
+  },
 
-  filterLabel: { fontWeight: 700, fontSize: 14, color: '#374151', marginBottom: 8 },
-  filterRow: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' },
-  filterBtn: { background: '#f1f5f9', color: '#2563eb', fontWeight: 700, borderRadius: 8, padding: '8px 14px', border: 'none', cursor: 'pointer' },
-  filterBtnActive: { background: '#2563eb', color: '#fff', fontWeight: 700, borderRadius: 8, padding: '8px 14px', border: 'none', cursor: 'pointer' },
+  filterLabel: { fontWeight: 600, fontSize: 14, color: 'var(--gray-700)', marginBottom: 8 },
+  filterRow: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
+  filterBtn: {
+    background: 'var(--gray-50)', color: 'var(--gray-600)', fontWeight: 600,
+    borderRadius: 'var(--radius-md)', padding: '8px 16px', border: '1px solid transparent',
+    cursor: 'pointer'
+  },
+  filterBtnActive: {
+    background: 'var(--primary-600)', color: '#fff', fontWeight: 600,
+    borderRadius: 'var(--radius-md)', padding: '8px 16px', border: '1px solid transparent',
+    cursor: 'pointer'
+  },
 
-  card: { background: '#fff', borderRadius: 12, padding: 20, marginTop: 18, boxShadow: '0 6px 24px rgba(16,24,40,0.03)' },
-  cardTitle: { margin: 0, marginBottom: 14, fontWeight: 800, fontSize: 18 },
-  loading: { color: '#6366f1', padding: '18px 0', textAlign: 'center' },
-  error: { background: '#fff6f6', color: '#b91c1c', padding: 12, borderRadius: 8, textAlign: 'center' },
-  empty: { color: '#64748b', fontSize: 15, padding: 18, textAlign: 'center' },
+  card: {
+    background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', padding: 24, marginTop: 24,
+    boxShadow: 'var(--shadow-sm)', border: '1px solid var(--gray-200)'
+  },
+  cardTitle: { margin: '0 0 16px 0', fontWeight: 700, fontSize: 18, color: 'var(--gray-900)' },
+  loading: { color: 'var(--primary-600)', padding: '24px 0', textAlign: 'center', fontWeight: 500 },
+  error: {
+    background: '#fef2f2', color: 'var(--error)', padding: 16, borderRadius: 'var(--radius-md)',
+    textAlign: 'center', border: '1px solid #fee2e2'
+  },
+  empty: { color: 'var(--gray-500)', fontSize: 15, padding: 24, textAlign: 'center' },
 
-  table: { width: '100%', borderCollapse: 'collapse', marginTop: 8 },
-  th: { textAlign: 'left', padding: '12px 14px', borderBottom: '2px solid #eef2ff', fontWeight: 700 },
-  td: { padding: '12px 14px', borderBottom: '1px solid #f1f5f9' },
-  linkStyle: { color: '#2563eb', fontWeight: 700, textDecoration: 'none' }
+  table: { width: '100%', borderCollapse: 'separate', borderSpacing: 0, marginTop: 8 },
+  th: {
+    textAlign: 'left', padding: '16px', borderBottom: '2px solid var(--gray-100)',
+    fontWeight: 600, color: 'var(--gray-600)', fontSize: 14
+  },
+  td: { padding: '16px', borderBottom: '1px solid var(--gray-100)', color: 'var(--gray-700)' },
+  linkStyle: { color: 'var(--primary-600)', fontWeight: 600, textDecoration: 'none' }
 };
